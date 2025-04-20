@@ -1,20 +1,12 @@
-FROM ollama/ollama
+FROM python:3.10-slim
 
 WORKDIR /root
 
 COPY requirements.txt ./
 
-# First install essential tools including wget
-RUN apt-get update 
-RUN apt-get install -y python3 python3-pip vim git wget build-essential
-
-# Now we can download and install SQLite
-RUN wget https://www.sqlite.org/2023/sqlite-autoconf-3420000.tar.gz \
-    && tar -xvzf sqlite-autoconf-3420000.tar.gz \
-    && cd sqlite-autoconf-3420000 \
-    && ./configure --prefix=/usr \
-    && make \
-    && make install
+# Install Ollama
+RUN apt-get update && apt-get install -y curl
+RUN curl -fsSL https://ollama.com/install.sh | sh
 
 # Install Python requirements
 RUN pip install -r requirements.txt
