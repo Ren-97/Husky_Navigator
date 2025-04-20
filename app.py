@@ -1,174 +1,140 @@
-import os
-from pathlib import Path
-from langchain.schema import Document
-from langchain.document_loaders import PyMuPDFLoader, CSVLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
-from langchain_ollama import OllamaEmbeddings, OllamaLLM
-from langchain.chains import RetrievalQA
-from pydantic import BaseModel, Field
-from typing import Optional, Type, List, Dict, Any, Union
-from langchain.memory import ConversationBufferMemory
-from langchain.agents import AgentExecutor, create_structured_chat_agent
-from langchain_core.prompts import MessagesPlaceholder, ChatPromptTemplate
-from langchain.tools import Tool
-from langchain.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnableMap, RunnableLambda
 import streamlit as st
+from husky import husky_agent
 
-# Set page config
+# Set page configuration
 st.set_page_config(
-    page_title="Husky Navigator - Northeastern University",
+    page_title="Husky Navigator - Northeastern University Silicon Valley",
     page_icon="🐺",
     layout="wide"
 )
 
-# Custom CSS
+# Apply custom CSS
 st.markdown("""
-<style>
-    .northeastern-title {
-        color: #CC0000;
+    <style>
+    .main-header {
         font-size: 2.5rem;
-        font-weight: bold;
+        color: #CC0000;
+        margin-bottom: 1rem;
     }
-    .tool-badge {
-        display: inline-block;
-        padding: 0.2rem 0.5rem;
-        background-color: #f0f2f6;
-        border-radius: 0.3rem;
+    .subheader {
+        font-size: 1.2rem;
+        color: #555;
+        margin-bottom: 2rem;
+    }
+    .tool-info {
         font-size: 0.8rem;
-        margin-top: 0.2rem;
+        color: #888;
+        font-style: italic;
+        margin-bottom: 0.5rem;
     }
-</style>
-""", unsafe_allow_html=True)
+    </style>
+    """, unsafe_allow_html=True)
 
-# Sidebar content
+# Initialize session state for messages and input
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
+    # Add welcome message
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": "🐺 Husky Navigator initialized! Ask me anything about Northeastern University Silicon Valley."
+    })
+
+# Function to reset conversation
+def reset_conversation():
+    st.session_state.messages = [{
+        "role": "assistant",
+        "content": "🐺 Husky Navigator initialized! Ask me anything about Northeastern University Silicon Valley."
+    }]
+    husky_agent.reset_memory()
+    st.success("Memory has been cleared. I've forgotten our previous conversation.")
+
+# Header
+st.markdown('<h1 class="main-header">🐺 Husky Navigator</h1>', unsafe_allow_html=True)
+st.markdown('<p class="subheader">Your virtual assistant for Northeastern University Silicon Valley</p>', unsafe_allow_html=True)
+
+# Sidebar
 with st.sidebar:
-    st.image("https://brand.northeastern.edu/wp-content/uploads/2021/11/Primary_Reverse-1000x1000.png", width=150)
-    st.markdown("## Husky Navigator 🐺")
-    st.markdown("Your AI assistant for Northeastern University")
-
-    st.markdown("---")
-
-    # User name input
-    your_name = st.text_input("What's your name?")
-
-    # Reset conversation button
+    st.image("https://www.siberianhuskyrescue.org/wp-content/uploads/husky.jpg", width=200)
+    st.markdown("## Commands")
+    st.markdown("""
+    - Type 'reset', 'clear memory', or 'forget' to clear conversation history
+    - Type 'exit', 'quit', or 'bye' to reset and clear the chat
+    """)
+    
     if st.button("Reset Conversation"):
-        # Initialize a new agent if reset is clicked
-        if "husky_agent" in st.session_state:
-            st.session_state.husky_agent.reset_memory()
-        for key in list(st.session_state.keys()):
-            if key in ["messages", "chat_history"]:
-                del st.session_state[key]
-        st.rerun()
-
-    st.markdown("---")
-
-    # Sample questions
-    st.markdown("### Sample Questions")
-    sample_questions = [
-        "What courses are available in Fall 2025?",
-        "Who teaches database courses?",
-        "When does registration start?",
-        "What are the requirements for CS degree?",
-        "What is the last day to drop a class?"
-    ]
-
-    for question in sample_questions:
-        if st.button(question):
-            # Set the question as input and process it
-            if "messages" not in st.session_state:
-                st.session_state.messages = [{"role": "assistant", "content": "How can I help you?"}]
-
-            st.session_state.messages.append({"role": "user", "content": question})
-            # Trigger a rerun to process the new message
-            st.rerun()
-
-# Initialize session state
-if "husky_agent" not in st.session_state:
-    # Initialize your agent
-    st.session_state.husky_agent = HuskyNavigatorLlama3Agent()
-
-if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Hello! I'm Husky Navigator, your AI assistant for Northeastern University. How can I help you today?"}]
-
-# Main title
-if your_name:
-    st.markdown(f"<div class='northeastern-title'>Hello, {your_name}! 👋</div>", unsafe_allow_html=True)
-else:
-    st.markdown("<div class='northeastern-title'>Husky Navigator 🐺</div>", unsafe_allow_html=True)
-
-st.caption("Your AI assistant for Northeastern University Silicon Valley Campus")
+        reset_conversation()
 
 # Display chat messages
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
-        st.write(message["content"])
-        # Display tool badge if it exists
-        if "tool_used" in message and message["role"] == "assistant":
-            st.markdown(f"<div class='tool-badge'>Tool used: {message['tool_used']}</div>", unsafe_allow_html=True)
+        st.markdown(message["content"])
+        if message["role"] == "assistant" and "tool_info" in message:
+            st.markdown(f'<p class="tool-info">{message["tool_info"]}</p>', unsafe_allow_html=True)
 
 # Chat input
-if prompt := st.chat_input("Ask me anything about Northeastern University..."):
+if prompt := st.chat_input("You:"):
+    # Check for exit command
+    if prompt.lower() in ['exit', 'quit', 'bye']:
+        reset_conversation()
+        # Add exit message
+        st.session_state.messages.append({"role": "assistant", "content": "Goodbye! Have a great day!"})
+        st.rerun()
+    
+    # Check for reset command
+    if prompt.lower() in ['reset', 'clear memory', 'forget']:
+        reset_conversation()
+        st.rerun()
+    
     # Add user message to chat history
     st.session_state.messages.append({"role": "user", "content": prompt})
-
+    
     # Display user message
     with st.chat_message("user"):
-        st.write(prompt)
-
-    # Get response from Husky Navigator agent
+        st.markdown(prompt)
+    
+    # Display thinking message
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        message_placeholder.markdown("🤔 Thinking...")
-
+        thinking_placeholder = st.empty()
+        thinking_placeholder.markdown("Husky Navigator is thinking...")
+        
         try:
-            # Process the query with your agent
-            response = st.session_state.husky_agent.query(prompt)
-
-            # Display the answer
-            message_placeholder.markdown(response["answer"])
-
-            # Show which tool was used
-            tool_used = response.get("tool_used", "general_chat")
-            st.markdown(f"<div class='tool-badge'>Tool used: {tool_used}</div>", unsafe_allow_html=True)
-
-            # If fallback was used, show a note
-            if response.get("fallback", False):
-                st.info("Note: I had to use a fallback approach to answer your question.")
-
+            # Process the query
+            response = husky_agent.query(prompt)
+            
+            # Prepare tool info text based on fallback status
+            tool_info = ""
+            if response.get('fallback', False):
+                tool_info = "(Used fallback RAG approach)"
+            else:
+                tool_info = f"(Used tool: {response.get('tool_used', 'unknown')})"
+            
+            # Update the message with the response
+            thinking_placeholder.markdown(response['answer'])
+            st.markdown(f'<p class="tool-info">{tool_info}</p>', unsafe_allow_html=True)
+            
             # Add assistant response to chat history
             st.session_state.messages.append({
-                "role": "assistant",
-                "content": response["answer"],
-                "tool_used": tool_used,
-                "fallback": response.get("fallback", False)
+                "role": "assistant", 
+                "content": response['answer'],
+                "tool_info": tool_info
             })
-
+            
         except Exception as e:
-            error_msg = f"I'm sorry, I encountered an error: {str(e)}. Please try again with a different question."
-            message_placeholder.markdown(error_msg)
-            st.session_state.messages.append({"role": "assistant", "content": error_msg})
-
-# Information section at the bottom
-st.markdown("---")
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("### Courses")
-    st.markdown("Ask about course information, prerequisites, and content.")
-
-with col2:
-    st.markdown("### Academic Calendar")
-    st.markdown("Find important dates, deadlines, and schedules.")
-
-with col3:
-    st.markdown("### Degree Programs")
-    st.markdown("Learn about degree requirements and program details.")
+            error_message = "I'm sorry, I encountered an error processing your request. Could you try rephrasing your question?"
+            thinking_placeholder.markdown(error_message)
+            
+            # Add error message to chat history
+            st.session_state.messages.append({
+                "role": "assistant", 
+                "content": error_message,
+                "tool_info": f"(Error: {str(e)})"
+            })
 
 # Footer
 st.markdown("---")
-st.caption("© 2025 Northeastern University. Powered by Husky Navigator AI.")
+st.markdown("""
+<div style="text-align: center; color: #888; font-size: 0.8rem;">
+    <p>Type 'exit' to quit or 'reset' to clear memory</p>
+    <p>© 2025 Northeastern University</p>
+</div>
+""", unsafe_allow_html=True)

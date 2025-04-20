@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ $# -ne 1 ]; then
+  echo "Usage: ./docker-startup <build/deploy/deploy-gpu>"
+  exit 
+fi
+
+if [ "$1" = "build" ]; then
+  docker build -t run-llama3 .
+elif [ "$1" = "deploy" ]; then
+  docker run --rm --name run-llama3 -v $PWD:/root -p 11434:11434 -p 8501:8501 -it run-llama3
+elif [ "$1" = "deploy-gpu" ]; then
+  docker run --rm --name run-llama3 -d --gpus=all -v $PWD:/root -p 11434:11434 -p 8501:8501 -it run-llama3
+fi
