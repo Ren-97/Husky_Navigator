@@ -478,7 +478,7 @@ class HuskyNavigatorLlama3Agent:
             Chat history: {chat_history}
 
             Available tools:
-            1. course_search: For questions about individual course content, descriptions, prerequisites, topics covered in specific classes, or when users mention specific course codes like 'CS5800', 'Algorithm 5800', etc. Use this when the question is about what a single course teaches or its academic content.
+            1. course_search: For questions about individual course content, descriptions, prerequisites, topics covered in specific classes, etc. Use this when the question is about what a single course teaches or its academic content.
 
             2. faculty_search: For questions about professors, instructors, faculty members, or staff information including their expertise, background, contact details, and office hours.
 
