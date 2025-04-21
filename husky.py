@@ -475,19 +475,28 @@ class HuskyNavigatorLlama3Agent:
 
             Query: "{query}"
 
-            Chat history:
-            {chat_history}
+            Chat history: {chat_history}
 
             Available tools:
-            1. course_search: For questions about course content, descriptions, prerequisites, topics covered in classes, or specific course codes like 'CS5800', 'Algorithm 5800', etc. Use this when the question is about what the course teaches or its academic content.
-            2. faculty_search: For questions about professors, instructors, faculty members, or staff.
+            1. course_search: For questions about individual course content, descriptions, prerequisites, topics covered in specific classes, or when users mention specific course codes like 'CS5800', 'Algorithm 5800', etc. Use this when the question is about what a single course teaches or its academic content.
+
+            2. faculty_search: For questions about professors, instructors, faculty members, or staff information including their expertise, background, contact details, and office hours.
+
             3. academic_calendar: For questions about important dates, deadlines, registration periods, etc. ONLY use this for questions about the academic year structure, deadlines, holidays, registration periods, and university-wide dates. Do NOT use this for questions about specific classes being offered.
-            4. degree_requirements: For questions about degree programs, graduation requirements, credits needed, etc.
-            5. course_schedule: For questions about when specific courses are offered, course availability, and class schedules. MOST IMPORTANTLY, use this for ANY questions about which professors/instructors are teaching specific courses in any term.
+
+            4. degree_requirements: For questions about degree programs, graduation requirements, credits needed, core courses in a program, required classes for a major or concentration, electives, and curriculum structure. Use this for any questions about what courses are required for a degree, program structure, or lists of core/required/elective courses.
+
+            5. course_schedule: For questions about when specific courses are offered, course availability in specific terms, class times, room locations, and specifically which professor is teaching a specific course in a specific term.
+
             6. northeastern_knowledge_base: For general questions about Northeastern University.
+
             7. general_chat: For casual conversation, greetings, or questions unrelated to university information.
 
-            IMPORTANT: For ANY questions like "Who is teaching X course?" or "Which professor teaches Y in Fall 2025?" or "Is Professor Z teaching any courses next term?", you MUST use the course_schedule tool, not the faculty_search tool.
+            IMPORTANT RULES:
+            - If someone asks about individual course content or what a specific course teaches (like 'tell me about algorithm 5800'), use course_search.
+            - If someone asks about required courses for a degree program, curriculum structure, or lists of core courses, use degree_requirements.
+            - If someone asks about who is teaching a specific course or when a course is offered, use course_schedule.
+            - If the query mentions both specific course content and program requirements, prioritize the main focus of the question.
 
             Based on the query and chat history, which ONE tool would be most appropriate to use?
             Respond with ONLY the tool name, nothing else.
@@ -623,10 +632,6 @@ class HuskyNavigatorLlama3Agent:
 
             # Update chat history
             self.chat_history.append((question, answer))
-
-            # Make sure we don't keep too much history (limit to last 10 exchanges)
-            if len(self.chat_history) > 10:
-                self.chat_history = self.chat_history[-10:]
                 
             # If memory was disabled, restore the previous history after processing
             if not use_memory:
