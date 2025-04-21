@@ -569,149 +569,149 @@ class HuskyNavigatorLlama3Agent:
             return "general_chat"
 
     def query(self, question: str) -> Dict[str, Any]:
-    """Process a user query by selecting the appropriate tool using LLM and generating enhanced responses"""
-    try:
-        # Add follow-up question detection
-        classification_prompt = PromptTemplate.from_template(
-            "Is the following question a follow-up that requires context from earlier conversation? Answer only YES or NO.\n\nQuestion: {query}"
-        )
-        followup_classifier = LLMChain(llm=self.llm, prompt=classification_prompt)
-        
-        def is_follow_up_llm(query: str) -> bool:
-            result = followup_classifier.run(query)
-            return "yes" in result.lower()
-        
-        # Check if this is a follow-up question
-        is_followup = False
-        if self.chat_history:  # Only check if there is previous history
-            is_followup = is_follow_up_llm(question)
-            
-        # If not a follow-up, reset chat history
-        if not is_followup:
-            print("Not a follow-up question. Resetting memory.")
-            self.chat_history = []
-        else:
-            print("Follow-up question detected. Maintaining conversation context.")
-            
-        # Format chat history for context
-        formatted_history = self._format_chat_history()
-
-        # Determine which tool to use with LLM
-        tool_name = self.determine_tool_with_llm(question)
-        print(f"Selected tool: {tool_name}")
-
-        # Execute the tool
-        tool_func = self.tools[tool_name]
-
-        # For general chat
-        if tool_name == "general_chat":
-            result = tool_func(question)
-            answer = result
-        else:
-            # For other tools, enhance the raw result with post-processing
-            raw_result = tool_func(question)
-
-            post_processing_prompt = PromptTemplate.from_template(
-                """
-                You are Husky Navigator, an AI assistant for Northeastern University's Silicon Valley Campus.
-
-                The user asked: {question}
-
-                Chat history:
-                {chat_history}
-
-                The system retrieved the following information:
-
-                {raw_result}
-
-                Transform this raw retrieved information into a natural, conversational response that:
-                1. Directly addresses the user's question
-                2. Organizes the information in a logical flow
-                3. Uses a friendly, helpful tone
-                4. Clarifies any ambiguities
-                5. Acknowledges any limitations in the information
-                6. References the conversation history when relevant
-
-                Your response should sound like a knowledgeable university advisor, not a search result.
-                """
-            )
-
-            # Apply post-processing to format the response nicely
-            post_processing_chain = post_processing_prompt | self.llm | StrOutputParser()
-            answer = post_processing_chain.invoke({
-                "question": question,
-                "chat_history": formatted_history,
-                "raw_result": raw_result
-            })
-        
-        # If summary mode is enabled, summarize the response
-        if summary_mode:
-            summarization_prompt = PromptTemplate.from_template(
-                """
-                Summarize the following response in a concise paragraph:
-                
-                {answer}
-                
-                Provide a summary that:
-                1. Includes only the most important information
-                2. Is no more than 3 sentences long
-                3. Maintains the essential facts and context
-                4. Preserves any critical details (dates, times, locations, etc.)
-                
-                Summary:
-                """
-            )
-            
-            summarization_chain = summarization_prompt | self.llm | StrOutputParser()
-            answer = summarization_chain.invoke({"answer": answer})
-
-        # Update chat history
-        self.chat_history.append((question, answer))
-
-        # Make sure we don't keep too much history (limit to last 10 exchanges)
-        if len(self.chat_history) > 10:
-            self.chat_history = self.chat_history[-10:]
-
-        return {
-            "answer": answer,
-            "tool_used": tool_name,
-            "fallback": False
-        }
-
-    except Exception as e:
-        print(f"Tool execution failed with error: {str(e)}")
-
-        # Enhanced fallback to direct RAG with better response generation
+        """Process a user query by selecting the appropriate tool using LLM and generating enhanced responses"""
         try:
-            # Use the enhanced RAG chain directly with chat history
-            response_text = self.rag_chain.invoke({
-                "question": question,
-                "chat_history": formatted_history
-            })
+            # Add follow-up question detection
+            classification_prompt = PromptTemplate.from_template(
+                "Is the following question a follow-up that requires context from earlier conversation? Answer only YES or NO.\n\nQuestion: {query}"
+            )
+            followup_classifier = LLMChain(llm=self.llm, prompt=classification_prompt)
+            
+            def is_follow_up_llm(query: str) -> bool:
+                result = followup_classifier.run(query)
+                return "yes" in result.lower()
+            
+            # Check if this is a follow-up question
+            is_followup = False
+            if self.chat_history:  # Only check if there is previous history
+                is_followup = is_follow_up_llm(question)
+                
+            # If not a follow-up, reset chat history
+            if not is_followup:
+                print("Not a follow-up question. Resetting memory.")
+                self.chat_history = []
+            else:
+                print("Follow-up question detected. Maintaining conversation context.")
+                
+            # Format chat history for context
+            formatted_history = self._format_chat_history()
 
-            # Update chat history even with fallback response
-            self.chat_history.append((question, response_text))
+            # Determine which tool to use with LLM
+            tool_name = self.determine_tool_with_llm(question)
+            print(f"Selected tool: {tool_name}")
+
+            # Execute the tool
+            tool_func = self.tools[tool_name]
+
+            # For general chat
+            if tool_name == "general_chat":
+                result = tool_func(question)
+                answer = result
+            else:
+                # For other tools, enhance the raw result with post-processing
+                raw_result = tool_func(question)
+
+                post_processing_prompt = PromptTemplate.from_template(
+                    """
+                    You are Husky Navigator, an AI assistant for Northeastern University's Silicon Valley Campus.
+
+                    The user asked: {question}
+
+                    Chat history:
+                    {chat_history}
+
+                    The system retrieved the following information:
+
+                    {raw_result}
+
+                    Transform this raw retrieved information into a natural, conversational response that:
+                    1. Directly addresses the user's question
+                    2. Organizes the information in a logical flow
+                    3. Uses a friendly, helpful tone
+                    4. Clarifies any ambiguities
+                    5. Acknowledges any limitations in the information
+                    6. References the conversation history when relevant
+
+                    Your response should sound like a knowledgeable university advisor, not a search result.
+                    """
+                )
+
+                # Apply post-processing to format the response nicely
+                post_processing_chain = post_processing_prompt | self.llm | StrOutputParser()
+                answer = post_processing_chain.invoke({
+                    "question": question,
+                    "chat_history": formatted_history,
+                    "raw_result": raw_result
+                })
+            
+            # If summary mode is enabled, summarize the response
+            if summary_mode:
+                summarization_prompt = PromptTemplate.from_template(
+                    """
+                    Summarize the following response in a concise paragraph:
+                    
+                    {answer}
+                    
+                    Provide a summary that:
+                    1. Includes only the most important information
+                    2. Is no more than 3 sentences long
+                    3. Maintains the essential facts and context
+                    4. Preserves any critical details (dates, times, locations, etc.)
+                    
+                    Summary:
+                    """
+                )
+                
+                summarization_chain = summarization_prompt | self.llm | StrOutputParser()
+                answer = summarization_chain.invoke({"answer": answer})
+
+            # Update chat history
+            self.chat_history.append((question, answer))
 
             # Make sure we don't keep too much history (limit to last 10 exchanges)
             if len(self.chat_history) > 10:
                 self.chat_history = self.chat_history[-10:]
 
             return {
-                "answer": response_text,
-                "fallback": True
+                "answer": answer,
+                "tool_used": tool_name,
+                "fallback": False
             }
-        except Exception as fallback_error:
-            print(f"Fallback RAG also failed: {str(fallback_error)}")
 
-            error_message = "I'm sorry, I encountered an error processing your request. Please try again with a different question."
+        except Exception as e:
+            print(f"Tool execution failed with error: {str(e)}")
 
-            # Still update chat history with the error response
-            self.chat_history.append((question, error_message))
+            # Enhanced fallback to direct RAG with better response generation
+            try:
+                # Use the enhanced RAG chain directly with chat history
+                response_text = self.rag_chain.invoke({
+                    "question": question,
+                    "chat_history": formatted_history
+                })
 
-            return {
-                "answer": error_message,
-                "fallback": True
-            }
+                # Update chat history even with fallback response
+                self.chat_history.append((question, response_text))
+
+                # Make sure we don't keep too much history (limit to last 10 exchanges)
+                if len(self.chat_history) > 10:
+                    self.chat_history = self.chat_history[-10:]
+
+                return {
+                    "answer": response_text,
+                    "fallback": True
+                }
+            except Exception as fallback_error:
+                print(f"Fallback RAG also failed: {str(fallback_error)}")
+
+                error_message = "I'm sorry, I encountered an error processing your request. Please try again with a different question."
+
+                # Still update chat history with the error response
+                self.chat_history.append((question, error_message))
+
+                return {
+                    "answer": error_message,
+                    "fallback": True
+                }
 
     def reset_memory(self):
         """Clear the conversation memory."""
