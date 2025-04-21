@@ -27,6 +27,40 @@ st.markdown("""
         font-style: italic;
         margin-bottom: 0.5rem;
     }
+    .tool-badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: white;
+    }
+    .course-search-badge {
+        background-color: #4285F4;
+    }
+    .faculty-search-badge {
+        background-color: #34A853;
+    }
+    .academic-calendar-badge {
+        background-color: #FBBC05;
+        color: #333;
+    }
+    .degree-requirements-badge {
+        background-color: #EA4335;
+    }
+    .course-schedule-badge {
+        background-color: #8755C9;
+    }
+    .northeastern-knowledge-base-badge {
+        background-color: #CC0000;
+    }
+    .general-chat-badge {
+        background-color: #6C757D;
+    }
+    .fallback-badge {
+        background-color: #FF6B6B;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -55,11 +89,11 @@ st.markdown('<p class="subheader">Your virtual assistant for Northeastern Univer
 # Sidebar
 with st.sidebar:
     st.image("https://www.siberianhuskyrescue.org/wp-content/uploads/husky.jpg", width=200)
-    st.markdown("## Settings")
     
+    st.markdown("## Settings")
     # Add the summary mode toggle
     summary_mode = st.checkbox("Enable summary mode (shorter responses)")
-
+    
     st.markdown("## Commands")
     st.markdown("""
     - Type 'reset', 'clear memory', or 'forget' to clear conversation history
@@ -73,8 +107,37 @@ with st.sidebar:
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        if message["role"] == "assistant" and "tool_info" in message:
-            st.markdown(f'<p class="tool-info">{message["tool_info"]}</p>', unsafe_allow_html=True)
+        if message["role"] == "assistant":
+            # Display tool badge if available
+            if "tool_used" in message or "fallback" in message:
+                # Determine the badge style based on the tool used
+                tool_badge = ""
+                
+                if message.get("fallback", False):
+                    tool_badge = '<div class="tool-badge fallback-badge">🔄 Fallback RAG</div>'
+                elif "tool_used" in message:
+                    tool_used = message["tool_used"]
+                    if tool_used == "course_search":
+                        tool_badge = '<div class="tool-badge course-search-badge">🔍 Course Search</div>'
+                    elif tool_used == "faculty_search":
+                        tool_badge = '<div class="tool-badge faculty-search-badge">👨‍🏫 Faculty Search</div>'
+                    elif tool_used == "academic_calendar":
+                        tool_badge = '<div class="tool-badge academic-calendar-badge">📅 Academic Calendar</div>'
+                    elif tool_used == "degree_requirements":
+                        tool_badge = '<div class="tool-badge degree-requirements-badge">🎓 Degree Requirements</div>'
+                    elif tool_used == "course_schedule":
+                        tool_badge = '<div class="tool-badge course-schedule-badge">⏰ Course Schedule</div>'
+                    elif tool_used == "northeastern_knowledge_base":
+                        tool_badge = '<div class="tool-badge northeastern-knowledge-base-badge">📚 Knowledge Base</div>'
+                    elif tool_used == "general_chat":
+                        tool_badge = '<div class="tool-badge general-chat-badge">💬 General Chat</div>'
+                
+                # Display the badge
+                st.markdown(tool_badge, unsafe_allow_html=True)
+                
+            # Display tool info text if available
+            if "tool_info" in message:
+                st.markdown(f'<p class="tool-info">{message["tool_info"]}</p>', unsafe_allow_html=True)
 
 # Chat input
 if prompt := st.chat_input("You:"):
@@ -103,7 +166,7 @@ if prompt := st.chat_input("You:"):
         thinking_placeholder.markdown("Husky Navigator is thinking...")
         
         try:
-            # Process the query
+            # Process the query with summary mode option
             response = husky_agent.query(prompt, summary_mode=summary_mode)
             
             # Prepare tool info text based on fallback status
@@ -115,13 +178,38 @@ if prompt := st.chat_input("You:"):
             
             # Update the message with the response
             thinking_placeholder.markdown(response['answer'])
+            
+            # Add tool badge
+            tool_badge = ""
+            if response.get('fallback', False):
+                tool_badge = '<div class="tool-badge fallback-badge">🔄 Fallback RAG</div>'
+            elif "tool_used" in response:
+                tool_used = response["tool_used"]
+                if tool_used == "course_search":
+                    tool_badge = '<div class="tool-badge course-search-badge">🔍 Course Search</div>'
+                elif tool_used == "faculty_search":
+                    tool_badge = '<div class="tool-badge faculty-search-badge">👨‍🏫 Faculty Search</div>'
+                elif tool_used == "academic_calendar":
+                    tool_badge = '<div class="tool-badge academic-calendar-badge">📅 Academic Calendar</div>'
+                elif tool_used == "degree_requirements":
+                    tool_badge = '<div class="tool-badge degree-requirements-badge">🎓 Degree Requirements</div>'
+                elif tool_used == "course_schedule":
+                    tool_badge = '<div class="tool-badge course-schedule-badge">⏰ Course Schedule</div>'
+                elif tool_used == "northeastern_knowledge_base":
+                    tool_badge = '<div class="tool-badge northeastern-knowledge-base-badge">📚 Knowledge Base</div>'
+                elif tool_used == "general_chat":
+                    tool_badge = '<div class="tool-badge general-chat-badge">💬 General Chat</div>'
+            
+            st.markdown(tool_badge, unsafe_allow_html=True)
             st.markdown(f'<p class="tool-info">{tool_info}</p>', unsafe_allow_html=True)
             
             # Add assistant response to chat history
             st.session_state.messages.append({
                 "role": "assistant", 
                 "content": response['answer'],
-                "tool_info": tool_info
+                "tool_info": tool_info,
+                "tool_used": response.get('tool_used', 'unknown'),
+                "fallback": response.get('fallback', False)
             })
             
         except Exception as e:
@@ -132,7 +220,8 @@ if prompt := st.chat_input("You:"):
             st.session_state.messages.append({
                 "role": "assistant", 
                 "content": error_message,
-                "tool_info": f"(Error: {str(e)})"
+                "tool_info": f"(Error: {str(e)})",
+                "fallback": True
             })
 
 # Footer
