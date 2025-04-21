@@ -583,7 +583,7 @@ class HuskyNavigatorLlama3Agent:
                     RAW RETRIEVED INFORMATION: {raw_result}
 
                     Transform this raw information into a natural, conversational response that:
-                    1. Directly addresses the query
+                    1. Directly addresses the query without mentioning whether there was previous conversation
                     2. Presents information in logical order
                     3. Uses a friendly, professional tone
                     4. Acknowledges any limitations in the available information
