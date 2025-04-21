@@ -479,7 +479,7 @@ class HuskyNavigatorLlama3Agent:
             {chat_history}
 
             Available tools:
-            1. course_search: For questions about specific courses, their content, prerequisites, etc.
+            1. course_search: For questions about course content, descriptions, prerequisites, topics covered in classes, or specific course codes like 'CS5800', 'Algorithm 5800', etc. Use this when the question is about what the course teaches or its academic content.
             2. faculty_search: For questions about professors, instructors, faculty members, or staff.
             3. academic_calendar: For questions about important dates, deadlines, registration periods, etc. ONLY use this for questions about the academic year structure, deadlines, holidays, registration periods, and university-wide dates. Do NOT use this for questions about specific classes being offered.
             4. degree_requirements: For questions about degree programs, graduation requirements, credits needed, etc.
