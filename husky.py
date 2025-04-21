@@ -86,7 +86,7 @@ def text_splitter_strategy(docs):
         # Use smaller chunks with less overlap
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=500,
-            chunk_overlap=100,
+            chunk_overlap=50,
             separators=["\n\n", "\n", " ", ""]
         )
         chunks = splitter.split_documents([docs])
@@ -121,7 +121,7 @@ def text_splitter_strategy(docs):
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
-            separators=["\n\n", "\n", "Term:", "Course:", ". ", " ", ""]
+            separators=["\n\n", "Title:", "Instructor:", "Term:", "CRN:", ", ", ". ", " ", ""]
         )
         chunks = splitter.split_documents([docs])
 
