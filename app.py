@@ -55,6 +55,11 @@ st.markdown('<p class="subheader">Your virtual assistant for Northeastern Univer
 # Sidebar
 with st.sidebar:
     st.image("https://www.siberianhuskyrescue.org/wp-content/uploads/husky.jpg", width=200)
+    st.markdown("## Settings")
+    
+    # Add the summary mode toggle
+    summary_mode = st.checkbox("Enable summary mode (shorter responses)")
+
     st.markdown("## Commands")
     st.markdown("""
     - Type 'reset', 'clear memory', or 'forget' to clear conversation history
@@ -99,7 +104,7 @@ if prompt := st.chat_input("You:"):
         
         try:
             # Process the query
-            response = husky_agent.query(prompt)
+            response = husky_agent.query(prompt, summary_mode=summary_mode)
             
             # Prepare tool info text based on fallback status
             tool_info = ""
