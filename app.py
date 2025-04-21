@@ -94,6 +94,13 @@ with st.sidebar:
     # Add the summary mode toggle
     summary_mode = st.checkbox("Enable summary mode (shorter responses)")
     
+    # Add memory toggle
+    use_memory = st.checkbox("Enable conversation memory", value=False)
+    if use_memory:
+        st.info("Memory is enabled - Husky will remember previous conversation context.")
+    else:
+        st.info("Memory is disabled - Each question will be treated independently.")
+    
     st.markdown("## Commands")
     st.markdown("""
     - Type 'reset', 'clear memory', or 'forget' to clear conversation history
@@ -166,8 +173,8 @@ if prompt := st.chat_input("You:"):
         thinking_placeholder.markdown("Husky Navigator is thinking...")
         
         try:
-            # Process the query with summary mode option
-            response = husky_agent.query(prompt, summary_mode=summary_mode)
+            # Process the query with summary mode and memory options
+            response = husky_agent.query(prompt, summary_mode=summary_mode, use_memory=use_memory)
             
             # Prepare tool info text based on fallback status
             tool_info = ""

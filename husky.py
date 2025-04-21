@@ -289,147 +289,125 @@ class HuskyNavigatorLlama3Agent:
         self.chat_history = []
 
     def _setup_retrieval(self):
-      """Set up the RAG components for retrieval with enhanced generation"""
-      self.retriever = self.vectorstore.as_retriever(
-          search_type="similarity",
-          search_kwargs={"k": 5}
-      )
+        """Set up the RAG components for retrieval with enhanced generation"""
+        self.retriever = self.vectorstore.as_retriever(
+            search_type="similarity",
+            search_kwargs={"k": 5}
+        )
 
-      # Step 1: Query reformulation to improve retrieval
-      query_reformulation_prompt = PromptTemplate.from_template(
-          """
-          You are a query reformulation assistant for a university information system.
-          Your task is to reformulate the user's query to make it more effective for retrieving
-          relevant information from a vector database.
+        # Step 1: Query reformulation to improve retrieval
+        query_reformulation_prompt = PromptTemplate.from_template(
+            """You are an expert query reformulation system for Northeastern University Silicon Valley.
 
-          Original query: {original_query}
+            Input: {original_query}
 
-          Chat history:
-          {chat_history}
+            Rewrite this query to maximize retrieval effectiveness by:
+            1. Identifying academic entities (courses, faculty, programs)
+            2. Adding relevant university terminology
+            3. Focusing on retrievable factual information
+            4. Being concise and specific
 
-          Create a reformulated search query that:
-          1. Identifies the main entities (courses, faculty, programs, dates, etc.)
-          2. Adds relevant university-specific terminology
-          3. Focuses on retrievable factual information
-          4. Is concise and specific
-          5. Takes into account the conversation history for context
+            OUTPUT ONLY THE REFORMULATED QUERY, NOTHING ELSE.
+            """
+        )
 
-          Return only the reformulated query, nothing else.
-          """
-      )
+        # Step 2: Enhanced RAG prompt for better reasoning with context
+        rag_reasoning_prompt = PromptTemplate.from_template(
+            """You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
 
-      # Step 2: Enhanced RAG prompt for better reasoning with context
-      rag_reasoning_prompt = PromptTemplate.from_template(
-          """
-          You are Husky Navigator, an AI assistant for Northeastern University's Silicon Valley Campus.
+            CONTEXT: {context}
 
-          Review the following retrieved context information carefully:
+            QUERY: {question}
 
-          {context}
+            PREVIOUS CONVERSATION: {chat_history}
 
-          Original question: {question}
+            TASK:
+            Analyze if the context contains sufficient information to answer the query.
 
-          Chat history:
-          {chat_history}
+            REASONING STEPS:
+            1. What specific information does the query request?
+            2. What relevant information appears in the context?
+            3. Is any critical information missing?
+            4. How should I structure my response for maximum clarity?
 
-          First, analyze whether the context provides sufficient information to answer the question.
-          Then, use your reasoning to formulate a comprehensive answer based on:
-          1. The specific information from the context
-          2. The exact requirements of the question
-          3. The conversation history for context
+            Your analysis:
+            """
+        )
 
-          If the context doesn't contain the necessary information, acknowledge this limitation clearly.
+        # Step 3: Final response generation prompt
+        final_response_prompt = PromptTemplate.from_template(
+            """You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
 
-          Think step-by-step:
-          1. What key information does the question ask for?
-          2. What relevant information is present in the context?
-          3. What's the most accurate and helpful way to present this information?
-          4. Is any important information missing from the context?
+            QUERY: {question}
 
-          Provide your analysis and reasoning:
-          """
-      )
+            YOUR REASONING: {reasoning}
 
-      # Step 3: Final response generation prompt
-      final_response_prompt = PromptTemplate.from_template(
-          """
-          You are Husky Navigator, an AI assistant for Northeastern University's Silicon Valley Campus.
+            PREVIOUS CONVERSATION: {chat_history}
 
-          Based on the reasoning about the question and context, provide a final response.
+            RESPONSE GUIDELINES:
+            1. Be conversational yet professional
+            2. Be direct and specific
+            3. Acknowledge any information gaps
+            4. Organize information logically
+            5. Avoid unnecessary technical jargon
 
-          Original question: {question}
+            Your response:
+            """
+        )
 
-          Chat history:
-          {chat_history}
+        # Define the enhanced RAG chain with multi-step reasoning
+        self.rag_chain = (
+            # Step 1: Query reformulation
+            RunnableMap({
+                "original_query": lambda x: x["question"],
+                "chat_history": lambda x: x.get("chat_history", "")
+            })
+            | RunnableLambda(lambda x: {
+                "original_query": x["original_query"],
+                "chat_history": x["chat_history"],
+                "reformulated_query": query_reformulation_prompt.format(
+                    original_query=x["original_query"]
+                ) | self.llm | StrOutputParser()
+            })
 
-          Your reasoning: {reasoning}
+            # Step 2: Retrieve context based on reformulated query
+            | RunnableLambda(lambda x: {
+                "original_query": x["original_query"],
+                "chat_history": x["chat_history"],
+                "reformulated_query": x["reformulated_query"],
+                "context": [doc.page_content for doc in self.retriever.invoke(x["reformulated_query"])]
+            })
+            | RunnableLambda(lambda x: {
+                "question": x["original_query"],
+                "chat_history": x["chat_history"],
+                "context": "\n\n".join(x["context"]) if x["context"] else "No relevant information found."
+            })
 
-          Now provide a clear, concise, and helpful final answer:
-          1. Use a natural, conversational tone
-          2. Be specific and direct
-          3. Acknowledge any limitations in the available information
-          4. Cite the document type when relevant
-          5. Organize information logically
-          6. Avoid unnecessary technical jargon
+            # Step 3: Reasoning step
+            | RunnableLambda(lambda x: {
+                "question": x["question"],
+                "chat_history": x["chat_history"],
+                "context": x["context"],
+                "reasoning": (rag_reasoning_prompt.format(
+                    question=x["question"],
+                    context=x["context"],
+                    chat_history=x["chat_history"]
+                ) | self.llm | StrOutputParser())
+            })
 
-          Your final response:
-          """
-      )
-
-      # Define the enhanced RAG chain with multi-step reasoning
-      self.rag_chain = (
-          # Step 1: Query reformulation
-          RunnableMap({
-              "original_query": lambda x: x["question"],
-              "chat_history": lambda x: x.get("chat_history", "")
-          })
-          | RunnableLambda(lambda x: {
-              "original_query": x["original_query"],
-              "chat_history": x["chat_history"],
-              "reformulated_query": query_reformulation_prompt.format(
-                  original_query=x["original_query"],
-                  chat_history=x["chat_history"]
-              ) | self.llm | StrOutputParser()
-          })
-
-          # Step 2: Retrieve context based on reformulated query
-          | RunnableLambda(lambda x: {
-              "original_query": x["original_query"],
-              "chat_history": x["chat_history"],
-              "reformulated_query": x["reformulated_query"],
-              "context": [doc.page_content for doc in self.retriever.invoke(x["reformulated_query"])]
-          })
-          | RunnableLambda(lambda x: {
-              "question": x["original_query"],
-              "chat_history": x["chat_history"],
-              "context": "\n\n".join(x["context"]) if x["context"] else "No relevant information found."
-          })
-
-          # Step 3: Reasoning step
-          | RunnableLambda(lambda x: {
-              "question": x["question"],
-              "chat_history": x["chat_history"],
-              "context": x["context"],
-              "reasoning": (rag_reasoning_prompt.format(
-                  question=x["question"],
-                  context=x["context"],
-                  chat_history=x["chat_history"]
-              ) | self.llm | StrOutputParser())
-          })
-
-          # Step 4: Final response generation
-          | RunnableLambda(lambda x: {
-              "question": x["question"],
-              "chat_history": x["chat_history"],
-              "reasoning": x["reasoning"],
-              "result": (final_response_prompt.format(
-                  question=x["question"],
-                  chat_history=x["chat_history"],
-                  reasoning=x["reasoning"]
-              ) | self.llm | StrOutputParser())
-          })
-          | RunnableLambda(lambda x: x["result"])
-      )
+            # Step 4: Final response generation
+            | RunnableLambda(lambda x: {
+                "question": x["question"],
+                "chat_history": x["chat_history"],
+                "reasoning": x["reasoning"],
+                "result": (final_response_prompt.format(
+                    question=x["question"],
+                    chat_history=x["chat_history"],
+                    reasoning=x["reasoning"]
+                ) | self.llm | StrOutputParser())
+            })
+            | RunnableLambda(lambda x: x["result"])
+        )
 
     def _setup_tools(self):
         """Create the tools for different query types"""
@@ -451,19 +429,20 @@ class HuskyNavigatorLlama3Agent:
     def handle_general_chat(self, query: str) -> str:
         """Handle general conversation that doesn't require university knowledge"""
 
-        general_chat_prompt = """
-        You are Husky Navigator, a friendly AI assistant for Northeastern University's Silicon Valley Campus.
+        general_chat_prompt = 
+        """You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
 
-        The user has asked a general question that doesn't require specific university knowledge.
+        QUERY: {query}
 
-        Question: {query}
+        PREVIOUS CONVERSATION: {chat_history}
 
-        Chat history:
-        {chat_history}
+        Respond conversationally while:
+        1. Maintaining your identity as a university assistant
+        2. Being friendly but professional
+        3. Keeping responses concise
+        4. Showing enthusiasm for helping with university matters
 
-        Provide a friendly, conversational response. Keep it brief but engaging.
-        Remember to maintain your identity as Husky Navigator from Northeastern University.
-        Reference previous conversation if relevant.
+        Response:
         """
 
         prompt = PromptTemplate.from_template(general_chat_prompt)
@@ -489,15 +468,14 @@ class HuskyNavigatorLlama3Agent:
     def determine_tool_with_llm(self, query: str) -> str:
         """Use the LLM to determine which tool to use for the given query"""
 
-        # Define a prompt for tool selection
+        # Define a prompt for tool selection - keeping the original idea
         tool_selection_prompt = """
           As Husky Navigator, an AI assistant for Northeastern University's Silicon Valley Campus,
           you need to determine which tool is most appropriate for answering this query.
 
           Query: "{query}"
 
-          Chat history:
-          {chat_history}
+          Chat history: {chat_history}
 
           Available tools:
           1. course_search: For questions about specific courses, their content, prerequisites, etc.
@@ -508,7 +486,7 @@ class HuskyNavigatorLlama3Agent:
           6. northeastern_knowledge_base: For general questions about Northeastern University.
           7. general_chat: For casual conversation, greetings, or questions unrelated to university information.
 
-          IMPORTANT: If the query is asking which instructor/professor is teaching a specific course in a specific term, ALWAYS use the course_schedule tool.
+          IMPORTANT: If the query is asking which instructor/professor is teaching a specific course in a specific term, or similiar questions, ALWAYS use the course_schedule tool.
 
           Based on the query and chat history, which ONE tool would be most appropriate to use?
           Respond with ONLY the tool name, nothing else.
@@ -568,30 +546,14 @@ class HuskyNavigatorLlama3Agent:
             # Default to general chat if LLM approach fails
             return "general_chat"
 
-    def query(self, question: str, summary_mode: bool = False) -> Dict[str, Any]:
+    def query(self, question: str, summary_mode: bool = False, use_memory: bool = False) -> Dict[str, Any]:
         """Process a user query by selecting the appropriate tool using LLM and generating enhanced responses"""
         try:
-            # Add follow-up question detection
-            classification_prompt = PromptTemplate.from_template(
-                "Is the following question a follow-up that requires context from earlier conversation? Answer only YES or NO.\n\nQuestion: {query}"
-            )
-            followup_classifier = LLMChain(llm=self.llm, prompt=classification_prompt)
-            
-            def is_follow_up_llm(query: str) -> bool:
-                result = followup_classifier.run(query)
-                return "yes" in result.lower()
-            
-            # Check if this is a follow-up question
-            is_followup = False
-            if self.chat_history:  # Only check if there is previous history
-                is_followup = is_follow_up_llm(question)
-                
-            # If not a follow-up, reset chat history
-            if not is_followup:
-                print("Not a follow-up question. Resetting memory.")
-                self.chat_history = []
-            else:
-                print("Follow-up question detected. Maintaining conversation context.")
+            # If memory is disabled, reset chat history
+            if not use_memory:
+                print("Memory disabled. Treating as new conversation.")
+                temp_history = self.chat_history.copy()  # Save history temporarily
+                self.chat_history = []  # Reset history for this query
                 
             # Format chat history for context
             formatted_history = self._format_chat_history()
@@ -612,27 +574,22 @@ class HuskyNavigatorLlama3Agent:
                 raw_result = tool_func(question)
 
                 post_processing_prompt = PromptTemplate.from_template(
-                    """
-                    You are Husky Navigator, an AI assistant for Northeastern University's Silicon Valley Campus.
+                    """You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
 
-                    The user asked: {question}
+                    QUERY: {question}
 
-                    Chat history:
-                    {chat_history}
+                    PREVIOUS CONVERSATION: {chat_history}
 
-                    The system retrieved the following information:
+                    RAW RETRIEVED INFORMATION: {raw_result}
 
-                    {raw_result}
+                    Transform this raw information into a natural, conversational response that:
+                    1. Directly addresses the query
+                    2. Presents information in logical order
+                    3. Uses a friendly, professional tone
+                    4. Acknowledges any limitations in the available information
+                    5. References previous conversation only when directly relevant
 
-                    Transform this raw retrieved information into a natural, conversational response that:
-                    1. Directly addresses the user's question
-                    2. Organizes the information in a logical flow
-                    3. Uses a friendly, helpful tone
-                    4. Clarifies any ambiguities
-                    5. Acknowledges any limitations in the information
-                    6. References the conversation history when relevant
-
-                    Your response should sound like a knowledgeable university advisor, not a search result.
+                    Response:
                     """
                 )
 
@@ -643,21 +600,20 @@ class HuskyNavigatorLlama3Agent:
                     "chat_history": formatted_history,
                     "raw_result": raw_result
                 })
-            
+
             # If summary mode is enabled, summarize the response
             if summary_mode:
                 summarization_prompt = PromptTemplate.from_template(
-                    """
-                    Summarize the following response in a concise paragraph:
-                    
-                    {answer}
-                    
-                    Provide a summary that:
-                    1. Includes only the most important information
-                    2. Is no more than 3 sentences long
-                    3. Maintains the essential facts and context
-                    4. Preserves any critical details (dates, times, locations, etc.)
-                    
+                    """Condense the following response into a brief summary:
+
+                    ORIGINAL: {answer}
+
+                    Your summary should:
+                    1. Include only essential information
+                    2. Use at most 3 sentences
+                    3. Preserve critical details (names, dates, locations)
+                    4. Maintain the same tone and formality level
+
                     Summary:
                     """
                 )
@@ -671,6 +627,17 @@ class HuskyNavigatorLlama3Agent:
             # Make sure we don't keep too much history (limit to last 10 exchanges)
             if len(self.chat_history) > 10:
                 self.chat_history = self.chat_history[-10:]
+                
+            # If memory was disabled, restore the previous history after processing
+            if not use_memory:
+                # Store this exchange temporarily
+                current_exchange = self.chat_history[-1] if self.chat_history else None
+                # Restore previous history
+                self.chat_history = temp_history
+                # If we had a new exchange, add it to the history for display purposes
+                # but it won't affect future queries
+                if current_exchange:
+                    self.chat_history.append(current_exchange)
 
             return {
                 "answer": answer,
@@ -688,13 +655,40 @@ class HuskyNavigatorLlama3Agent:
                     "question": question,
                     "chat_history": formatted_history
                 })
+                
+                # If summary mode is enabled, summarize the fallback response too
+                if summary_mode:
+                    summarization_prompt = PromptTemplate.from_template(
+                        """Condense the following response into a brief summary:
 
-                # Update chat history even with fallback response
+                        ORIGINAL: {answer}
+
+                        Your summary should:
+                        1. Include only essential information
+                        2. Use at most 3 sentences
+                        3. Preserve critical details (names, dates, locations)
+                        4. Maintain the same tone and formality level
+
+                        Summary:
+                        """
+                    )
+                    
+                    summarization_chain = summarization_prompt | self.llm | StrOutputParser()
+                    response_text = summarization_chain.invoke({"answer": response_text})
+
+                # Update chat history
                 self.chat_history.append((question, response_text))
-
-                # Make sure we don't keep too much history (limit to last 10 exchanges)
-                if len(self.chat_history) > 10:
-                    self.chat_history = self.chat_history[-10:]
+                
+                # If memory was disabled, restore the previous history after processing
+                if not use_memory:
+                    # Store this exchange temporarily
+                    current_exchange = self.chat_history[-1] if self.chat_history else None
+                    # Restore previous history
+                    self.chat_history = temp_history
+                    # If we had a new exchange, add it to the history for display purposes
+                    # but it won't affect future queries
+                    if current_exchange:
+                        self.chat_history.append(current_exchange)
 
                 return {
                     "answer": response_text,
@@ -705,8 +699,19 @@ class HuskyNavigatorLlama3Agent:
 
                 error_message = "I'm sorry, I encountered an error processing your request. Please try again with a different question."
 
-                # Still update chat history with the error response
+                # Update chat history with the error response
                 self.chat_history.append((question, error_message))
+                
+                # If memory was disabled, restore the previous history after processing
+                if not use_memory:
+                    # Store this exchange temporarily
+                    current_exchange = self.chat_history[-1] if self.chat_history else None
+                    # Restore previous history
+                    self.chat_history = temp_history
+                    # If we had a new exchange, add it to the history for display purposes
+                    # but it won't affect future queries
+                    if current_exchange:
+                        self.chat_history.append(current_exchange)
 
                 return {
                     "answer": error_message,
