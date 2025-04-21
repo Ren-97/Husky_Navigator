@@ -429,8 +429,8 @@ class HuskyNavigatorLlama3Agent:
     def handle_general_chat(self, query: str) -> str:
         """Handle general conversation that doesn't require university knowledge"""
 
-        general_chat_prompt = 
-        """You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
+        general_chat_prompt = """
+        You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
 
         QUERY: {query}
 
