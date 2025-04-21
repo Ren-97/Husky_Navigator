@@ -568,7 +568,7 @@ class HuskyNavigatorLlama3Agent:
             # Default to general chat if LLM approach fails
             return "general_chat"
 
-    def query(self, question: str) -> Dict[str, Any]:
+    def query(self, question: str, summary_mode: bool = False) -> Dict[str, Any]:
         """Process a user query by selecting the appropriate tool using LLM and generating enhanced responses"""
         try:
             # Add follow-up question detection
