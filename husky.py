@@ -250,7 +250,7 @@ def create_university_tools(vectorstore, rag_chain):
     # Course schedule tool
     course_schedule_tool = Tool(
         name="course_schedule",
-        description="Check course offerings and schedules for specific terms (Summer, Fall, Spring, Winter) and years. Use this for questions about what classes are offered, course availability, and class schedules for any term.",
+        description="Check course offerings and schedules for specific terms (Summer, Fall, Spring, Winter) and years. Use this for questions about what classes are offered, course availability, and class schedules. MOST IMPORTANTLY, use this for ALL questions about which professors or instructors are teaching specific courses in any term.",
         func=lambda query: search_course_schedule(query, vectorstore),
         args_schema=CourseScheduleInput
     )
@@ -430,20 +430,20 @@ class HuskyNavigatorLlama3Agent:
         """Handle general conversation that doesn't require university knowledge"""
 
         general_chat_prompt = """
-        You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
+            You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
 
-        QUERY: {query}
+            QUERY: {query}
 
-        PREVIOUS CONVERSATION: {chat_history}
+            PREVIOUS CONVERSATION: {chat_history}
 
-        Respond conversationally while:
-        1. Maintaining your identity as a university assistant
-        2. Being friendly but professional
-        3. Keeping responses concise
-        4. Showing enthusiasm for helping with university matters
+            Respond conversationally while:
+            1. Maintaining your identity as a university assistant
+            2. Being friendly but professional
+            3. Keeping responses concise
+            4. Showing enthusiasm for helping with university matters
 
-        Response:
-        """
+            Response:
+            """
 
         prompt = PromptTemplate.from_template(general_chat_prompt)
         chain = prompt | self.llm | StrOutputParser()
@@ -470,28 +470,28 @@ class HuskyNavigatorLlama3Agent:
 
         # Define a prompt for tool selection - keeping the original idea
         tool_selection_prompt = """
-          As Husky Navigator, an AI assistant for Northeastern University's Silicon Valley Campus,
-          you need to determine which tool is most appropriate for answering this query.
+            As Husky Navigator, an AI assistant for Northeastern University's Silicon Valley Campus,
+            you need to determine which tool is most appropriate for answering this query.
 
-          Query: "{query}"
+            Query: "{query}"
 
-          Chat history: {chat_history}
+            Chat history:
+            {chat_history}
 
-          Available tools:
-          1. course_search: For questions about specific courses, their content, prerequisites, etc.
-          2. faculty_search: For questions about professors, instructors, faculty members, or staff.
-          3. academic_calendar: For questions about important dates, deadlines, registration periods, etc. ONLY use this for questions about the academic year structure, deadlines, holidays, registration periods, and university-wide dates. Do NOT use this for questions about specific classes being offered.
-          4. degree_requirements: For questions about degree programs, graduation requirements, credits needed, etc.
-          5. course_schedule: For questions about when specific courses are offered in upcoming terms, what classes are offered during specific terms (like Summer 2025), course availability, and class schedules.
-          6. northeastern_knowledge_base: For general questions about Northeastern University.
-          7. general_chat: For casual conversation, greetings, or questions unrelated to university information.
+            Available tools:
+            1. course_search: For questions about specific courses, their content, prerequisites, etc.
+            2. faculty_search: For questions about professors, instructors, faculty members, or staff.
+            3. academic_calendar: For questions about important dates, deadlines, registration periods, etc. ONLY use this for questions about the academic year structure, deadlines, holidays, registration periods, and university-wide dates. Do NOT use this for questions about specific classes being offered.
+            4. degree_requirements: For questions about degree programs, graduation requirements, credits needed, etc.
+            5. course_schedule: For questions about when specific courses are offered, course availability, and class schedules. MOST IMPORTANTLY, use this for ANY questions about which professors/instructors are teaching specific courses in any term.
+            6. northeastern_knowledge_base: For general questions about Northeastern University.
+            7. general_chat: For casual conversation, greetings, or questions unrelated to university information.
 
-          IMPORTANT: If the query is asking which instructor/professor is teaching a specific course in a specific term, or similiar questions, ALWAYS use the course_schedule tool.
+            IMPORTANT: For ANY questions like "Who is teaching X course?" or "Which professor teaches Y in Fall 2025?" or "Is Professor Z teaching any courses next term?", you MUST use the course_schedule tool, not the faculty_search tool.
 
-          Based on the query and chat history, which ONE tool would be most appropriate to use?
-          Respond with ONLY the tool name, nothing else.
-
-          """
+            Based on the query and chat history, which ONE tool would be most appropriate to use?
+            Respond with ONLY the tool name, nothing else.
+            """
 
         # Create and run the prompt
         prompt = PromptTemplate.from_template(tool_selection_prompt)
