@@ -734,7 +734,7 @@ class HuskyNavigatorLlama3Agent:
 
 husky_agent = HuskyNavigatorLlama3Agent()
 
-"""
+
 print("🐺 Husky Navigator initialized! (Type 'exit' to quit)")
 print("---------------------------------------------------")
 
@@ -779,7 +779,7 @@ import random
 
 random.seed(42)
 example_gen_chain = QAGenerateChain.from_llm(llm)
-examples_gen_llm = example_gen_chain.apply_and_parse([{"doc": t} for t in random.sample(chunks, 5)])
+examples_gen_llm = example_gen_chain.apply_and_parse([{"doc": t} for t in random.sample(chunks, 100)])
 
 modified_examples = [{'query': 'Introduce Prof Karl',
                       'answer': 'Karl Ni is a Part-Time Lecturer at Northeastern University in Silicon Valley. In this role, he teaches graduate courses in AI / ML courses like Data Mining, Natural Language Processing, Machine Learning, etc.'},
@@ -804,6 +804,5 @@ for example in modified_examples:
 
 eval_chain = QAEvalChain.from_llm(llm)
 graded_outputs = eval_chain.evaluate(modified_examples, predictions)
-graded_outputs
-
-"""
+accuracy = sum(1 for item in graded_outputs if item['results'] == 'GRADE: CORRECT') / len(graded_outputs) * 100
+print(accuracy)
