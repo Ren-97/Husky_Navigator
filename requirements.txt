@@ -4,4 +4,3 @@ langchain-ollama
 pymupdf
 chromadb
 streamlit
-langchain-chroma
