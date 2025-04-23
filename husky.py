@@ -1,9 +1,9 @@
 import os
 from pathlib import Path
 from langchain.schema import Document
-from langchain.document_loaders import PyMuPDFLoader, CSVLoader
+from langchain_community.document_loaders import PyMuPDFLoader, CSVLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
 from langchain.chains import RetrievalQA
 from pydantic import BaseModel, Field
@@ -734,7 +734,7 @@ class HuskyNavigatorLlama3Agent:
 
 husky_agent = HuskyNavigatorLlama3Agent()
 
-
+"""
 print("🐺 Husky Navigator initialized! (Type 'exit' to quit)")
 print("---------------------------------------------------")
 
@@ -771,7 +771,8 @@ while True:
     except Exception as e:
         print(f"\nAn error occurred: {str(e)}")
         print("\nHusky Navigator: I'm sorry, I encountered an error processing your request. Could you try rephrasing your question?")
-
+"""
+        
 ### Evaluation
 
 from langchain.evaluation.qa import QAGenerateChain, QAEvalChain
