@@ -17,6 +17,7 @@ from langchain.chains import LLMChain
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableMap, RunnableLambda
 import streamlit as st
+import re
 
 """### Load and split data"""
 
@@ -201,15 +202,168 @@ def search_calendar(query: str, vectorstore) -> str:
     results = [doc.page_content for doc in docs]
     return "\n\n".join(results) if results else f"No calendar information found for {query}."
 
-def search_degree_requirements(query: str, vectorstore) -> str:
-    docs = vectorstore.similarity_search(f"{query} degree requirements", k=3, filter={"genre": "degree_requirements"})
-    results = [doc.page_content for doc in docs]
-    return "\n\n".join(results) if results else f"No degree requirements found for {query}."
-
 def search_course_schedule(query: str, vectorstore) -> str:
     docs = vectorstore.similarity_search(f"{query} schedule offering", k=3, filter={"genre": "open_classes"})
     results = [doc.page_content for doc in docs]
     return "\n\n".join(results) if results else f"No schedule information found for {query}."
+
+# Enhanced search_degree_requirements function with structured parsing
+def search_degree_requirements(query: str, vectorstore) -> str:
+    # Extract program name/abbreviation from query
+    program_pattern = re.search(r"(MS[A-Z]*|Master|MA[A-Z]*|PhD|Bachelor|BA[A-Z]*|BS[A-Z]*)", query, re.IGNORECASE)
+    program_name = program_pattern.group(0) if program_pattern else ""
+    
+    # Search with more specific terms for better retrieval
+    search_query = f"{program_name} degree program requirements curriculum courses credit hours"
+    docs = vectorstore.similarity_search(search_query, k=5, filter={"genre": "degree_requirements"})
+    
+    if not docs:
+        return f"No degree requirements found for {query}."
+    
+    # Process and format the results
+    return format_degree_requirements(docs, query)
+
+# New function to format degree requirements in a structured way
+def format_degree_requirements(docs, query):
+    # Combine all document content for processing
+    combined_content = "\n\n".join([doc.page_content for doc in docs])
+    
+    # Extract program name and abbreviation
+    program_name_match = re.search(r"([A-Za-z\s,]+),\s*([A-Z]+)", combined_content)
+    program_name = program_name_match.group(1).strip() if program_name_match else ""
+    program_abbr = program_name_match.group(2) if program_name_match else ""
+    
+    if not program_name:
+        # Try alternate pattern
+        alt_match = re.search(r"(Master of [A-Za-z\s]+in [A-Za-z\s]+)", combined_content)
+        program_name = alt_match.group(1) if alt_match else "Degree Program"
+    
+    # Extract program description
+    description_match = re.search(r"([A-Za-z].*is designed to.*\.(?:\s+The program.*\.)?)", combined_content, re.DOTALL)
+    description = description_match.group(1) if description_match else ""
+    
+    # Extract credit requirements
+    credit_match = re.search(r"(\d+)\s+total\s+(?:semester\s+)?hours\s+required", combined_content)
+    total_credits = credit_match.group(1) if credit_match else ""
+    
+    # Extract GPA requirements
+    gpa_match = re.search(r"Minimum\s+([\d\.]+)\s+GPA\s+required", combined_content)
+    minimum_gpa = gpa_match.group(1) if gpa_match else ""
+    
+    # Begin constructing the formatted response
+    result = f"## {program_name}"
+    if program_abbr:
+        result += f" ({program_abbr})"
+    result += "\n\n"
+    
+    if description:
+        result += f"{description}\n\n"
+    
+    # Add credit and GPA requirements
+    if total_credits:
+        result += f"**Total Credits Required**: {total_credits}\n"
+    if minimum_gpa:
+        result += f"**Minimum GPA Required**: {minimum_gpa}\n\n"
+    
+    # Extract and format Core Requirements
+    core_section = extract_section(combined_content, "Core Requirements")
+    if core_section:
+        result += f"### Core Requirements\n\n"
+        result += format_courses_table(extract_courses(core_section))
+        result += "\n"
+    
+    # Extract and format Breadth Areas
+    breadth_section = extract_section(combined_content, "Breadth Areas")
+    if breadth_section:
+        result += f"### Breadth Areas\n\n"
+        
+        # Extract breadth requirement
+        breadth_req_match = re.search(r"Complete\s+(.*?)\s+from\s+(.*?)\s+of\s+the\s+following.*?:\s+(\d+)", breadth_section)
+        if breadth_req_match:
+            breadth_requirement = f"**Requirement**: Complete {breadth_req_match.group(1)} from {breadth_req_match.group(2)} of the following breadth areas ({breadth_req_match.group(3)} credits)\n\n"
+            result += breadth_requirement
+        
+        # Extract individual breadth areas
+        breadth_areas = [
+            "Systems and Software",
+            "Theory and Security",
+            "Artificial Intelligence and Data Science",
+            "Human-Centered Computing"
+        ]
+        
+        for area in breadth_areas:
+            area_content = extract_section(breadth_section, area)
+            if area_content:
+                result += f"#### {area}\n\n"
+                result += format_courses_table(extract_courses(area_content))
+                result += "\n"
+    
+    # Extract and format Electives
+    electives_section = extract_section(combined_content, "Electives")
+    if electives_section:
+        result += f"### Electives\n\n"
+        
+        # Extract electives requirement
+        electives_req_match = re.search(r"Complete\s+(\d+)\s+(?:semester\s+)?hours\s+from", electives_section)
+        if electives_req_match:
+            electives_requirement = f"**Requirement**: Complete {electives_req_match.group(1)} semester hours from the following ({electives_req_match.group(1)} credits)\n\n"
+            result += electives_requirement
+        
+        result += format_courses_table(extract_courses(electives_section))
+        result += "\n"
+    
+    # Add note about consulting with advisor
+    result += "**Note**: Please consult with your advisor or admissions coach for the most up-to-date information on course availability and specific requirements for your campus or program modality."
+    
+    return result
+
+# Helper function to extract a section from the content
+def extract_section(content, section_title):
+    # Pattern to match the section and its content up to the next section
+    pattern = f"{section_title}.*?(?=Core Requirements|Breadth Areas|Electives|Program Credit|$)"
+    section_match = re.search(pattern, content, re.DOTALL | re.IGNORECASE)
+    return section_match.group(0) if section_match else ""
+
+# Helper function to extract courses from a section
+def extract_courses(section_text):
+    courses = []
+    
+    # Pattern to match course codes and titles
+    course_pattern = re.compile(r"([A-Z]{2,})\s+(\d{4}[A-Z0-9]*)\s+(.*?)(?=\s{2,}|$)", re.MULTILINE)
+    matches = course_pattern.finditer(section_text)
+    
+    for match in matches:
+        dept = match.group(1)
+        code = match.group(2)
+        title = match.group(3).strip()
+        
+        # Extract hours if present (looking for numbers at the end of lines)
+        hours_match = re.search(r"\b(\d+)\s*$", title)
+        hours = ""
+        if hours_match:
+            hours = hours_match.group(1)
+            title = title[:title.rfind(hours)].strip()
+        
+        courses.append({
+            "code": f"{dept} {code}",
+            "title": title,
+            "hours": hours
+        })
+    
+    return courses
+
+# Helper function to format courses as a table
+def format_courses_table(courses):
+    if not courses:
+        return "No courses found for this section.\n"
+    
+    table = "| Code | Title | Credits |\n"
+    table += "|------|-------|--------|\n"
+    
+    for course in courses:
+        table += f"| {course['code']} | {course['title']} | {course['hours']} |\n"
+    
+    return table
 
 # Function to create all tools
 def create_university_tools(vectorstore, rag_chain):
@@ -242,7 +396,7 @@ def create_university_tools(vectorstore, rag_chain):
     # Degree requirements tool
     degree_requirements_tool = Tool(
         name="degree_requirements",
-        description="Check requirements for a specific degree program",
+        description="Check requirements for a specific degree program, including core courses, electives, breadth areas, and credit hour requirements. Use this for questions about program structure, required courses, electives, and graduation requirements.",
         func=lambda query: search_degree_requirements(query, vectorstore),
         args_schema=DegreeRequirementsInput
     )
