@@ -8,7 +8,7 @@ from langchain_ollama import OllamaEmbeddings, OllamaLLM
 from langchain.chains import RetrievalQA
 from pydantic import BaseModel, Field
 from typing import Optional, Type, List, Dict, Any, Union
-from langchain.memory import ConversationBufferMemory
+from langchain.memory import ConversationSummaryMemory
 from langchain.agents import AgentExecutor, create_structured_chat_agent
 from langchain_core.prompts import MessagesPlaceholder, ChatPromptTemplate
 from langchain.tools import Tool
@@ -278,7 +278,7 @@ class HuskyNavigatorLlama3Agent:
     def __init__(self):
         self.llm = llm
         self.vectorstore = vectordb
-        self.memory = ConversationBufferMemory(
+        self.memory = ConversationSummaryMemory(
             memory_key="chat_history",
             return_messages=True
         )
@@ -780,7 +780,7 @@ import random
 
 random.seed(42)
 example_gen_chain = QAGenerateChain.from_llm(llm)
-examples_gen_llm = example_gen_chain.apply_and_parse([{"doc": t} for t in random.sample(chunks, 100)])
+examples_gen_llm = example_gen_chain.apply_and_parse([{"doc": t} for t in random.sample(chunks, 10)])
 
 modified_examples = [{'query': 'Introduce Prof Karl',
                       'answer': 'Karl Ni is a Part-Time Lecturer at Northeastern University in Silicon Valley. In this role, he teaches graduate courses in AI / ML courses like Data Mining, Natural Language Processing, Machine Learning, etc.'},
