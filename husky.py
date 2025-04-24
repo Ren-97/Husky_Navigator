@@ -594,7 +594,7 @@ class HuskyNavigatorLlama3Agent:
                 
                 # Specialized prompt for degree requirements to format course listings
                 degree_req_prompt = PromptTemplate.from_template(
-                    """You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
+                  """You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
 
                     QUERY: {question}
 
@@ -602,21 +602,26 @@ class HuskyNavigatorLlama3Agent:
 
                     DEGREE REQUIREMENTS INFORMATION: {raw_result}
 
-                    Transform this information into a well-organized response that:
-                    1. Clearly identifies the degree program or concentration
-                    2. Presents course requirements in a structured, easy-to-read format
-                    3. Organizes courses by category (core, required, elective, etc.)
-                    4. Highlights course codes and names for easy scanning
-                    5. Maintains a friendly, helpful tone
+                    Determine if the query is:
+                    A) Asking for general information about a program (what is MS in CS, tell me about the Data Science program, etc.)
+                    B) Asking specifically about requirements, courses, or what classes are needed
 
-                    If the query asks for specific courses required for a program, MAKE SURE to list ALL 
-                    the courses mentioned in the raw information, organized by category.
-                    
-                    If the information contains course codes (like CS5800, INFO6100, etc.), make sure to 
-                    include ALL of them in your response.
+                    If Type A (general program information):
+                    - Provide a concise 2-3 paragraph overview of the program
+                    - Include the degree type, focus areas, and general structure
+                    - Mention key highlights without listing all courses
+
+                    If Type B (course requirements):
+                    - Clearly identify the degree program or concentration
+                    - List ALL courses mentioned in the raw information
+                    - Organize courses by category (core, required, elective, etc.)
+                    - Format each course with its code and full name for easy scanning
+                    - Use bullet points or numbered lists for clarity
+
+                    In both cases, maintain a friendly, helpful tone and ensure you include ALL relevant information from the raw result.
 
                     Response:
-                    """
+                        """
                 )
                 
                 # Apply specialized processing for degree requirements
