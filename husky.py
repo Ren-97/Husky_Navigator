@@ -113,8 +113,8 @@ def text_splitter_strategy(docs):
     elif doc_type == "degree_requirements":
         # Degree requirements need larger chunks to maintain program context
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1200,
-            chunk_overlap=200,
+            chunk_size=3000,
+            chunk_overlap=500,
             separators=["\n\n", "\n", "Program:", "Degree:", "Requirements:", ". ", " ", ""]
         )
         chunks = splitter.split_documents([docs])
