@@ -594,7 +594,7 @@ class HuskyNavigatorLlama3Agent:
                 
                 # Specialized prompt for degree requirements to format course listings
                 degree_req_prompt = PromptTemplate.from_template(
-                  """You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
+                """You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
 
                     QUERY: {question}
 
@@ -602,16 +602,14 @@ class HuskyNavigatorLlama3Agent:
 
                     DEGREE REQUIREMENTS INFORMATION: {raw_result}
 
-                    Determine if the query is:
-                    A) Asking for general information about a program (what is MS in CS, what is MSCS, tell me about the Data Science program, etc.)
-                    B) Asking specifically about requirements, courses, or what classes are needed
+                    Analyze the query to determine if it's asking about general program information or specific course requirements.
 
-                    If Type A (general program information):
+                    For questions about what a program is or general information:
                     - Provide a concise 2-3 paragraph overview of the program
                     - Include the degree type, focus areas, and general structure
                     - Mention key highlights without listing all courses
 
-                    If Type B (course requirements):
+                    For questions about requirements, courses needed, or classes:
                     - Clearly identify the degree program or concentration
                     - List ALL courses mentioned in the raw information
                     - Organize courses by category (core, required, elective, etc.)
@@ -621,8 +619,7 @@ class HuskyNavigatorLlama3Agent:
                     In both cases, maintain a friendly, helpful tone and ensure you include ALL relevant information from the raw result.
 
                     Response:
-                        """
-                )
+                    """)
                 
                 # Apply specialized processing for degree requirements
                 specialized_chain = degree_req_prompt | self.llm | StrOutputParser()
