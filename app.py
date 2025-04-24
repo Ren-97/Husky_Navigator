@@ -98,7 +98,9 @@ st.markdown('<p class="subheader">Your virtual assistant for Northeastern Univer
 
 # Sidebar
 with st.sidebar:
-    st.image("husky_advisor.png", width=200)
+    col1, col2, col3 = st.columns([1, 3, 1])
+    with col2:
+        st.image("husky_advisor.png", width=200)
     
     st.markdown("## Settings")
     # Add the summary mode toggle
