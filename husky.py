@@ -112,7 +112,14 @@ def text_splitter_strategy(docs):
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=3000,
             chunk_overlap=500,
-            separators=["\n\n", "\n", "Program:", "Degree:", "Requirements:", ". ", " ", ""]
+            separators=[
+                "\n\n", "\n",          
+                "Program Requirements", 
+                "Core Requirements",  
+                "Breadth Areas",
+                "Electives",
+                ". ", " ", ""        
+            ]
         )
         chunks = splitter.split_documents([docs])
 
@@ -202,7 +209,7 @@ def search_calendar(query: str, vectorstore) -> str:
     return "\n\n".join(results) if results else f"No calendar information found for {query}."
 
 def search_degree_requirements(query: str, vectorstore) -> str:
-    docs = vectorstore.similarity_search(f"{query} degree requirements", k=3, filter={"genre": "degree_requirements"})
+    docs = vectorstore.similarity_search(f"{query} degree requirements", k=6, filter={"genre": "degree_requirements"})
     results = [doc.page_content for doc in docs]
     return "\n\n".join(results) if results else f"No degree requirements found for {query}."
 
@@ -582,6 +589,43 @@ class HuskyNavigatorLlama3Agent:
             if tool_name == "general_chat":
                 result = tool_func(question)
                 answer = result
+            if tool_name == "degree_requirements":
+                raw_result = tool_func(question)
+                
+                # Specialized prompt for degree requirements to format course listings
+                degree_req_prompt = PromptTemplate.from_template(
+                    """You are Husky Navigator, the AI assistant for Northeastern University Silicon Valley.
+
+                    QUERY: {question}
+
+                    PREVIOUS CONVERSATION: {chat_history}
+
+                    DEGREE REQUIREMENTS INFORMATION: {raw_result}
+
+                    Transform this information into a well-organized response that:
+                    1. Clearly identifies the degree program or concentration
+                    2. Presents course requirements in a structured, easy-to-read format
+                    3. Organizes courses by category (core, required, elective, etc.)
+                    4. Highlights course codes and names for easy scanning
+                    5. Maintains a friendly, helpful tone
+
+                    If the query asks for specific courses required for a program, MAKE SURE to list ALL 
+                    the courses mentioned in the raw information, organized by category.
+                    
+                    If the information contains course codes (like CS5800, INFO6100, etc.), make sure to 
+                    include ALL of them in your response.
+
+                    Response:
+                    """
+                )
+                
+                # Apply specialized processing for degree requirements
+                specialized_chain = degree_req_prompt | self.llm | StrOutputParser()
+                answer = specialized_chain.invoke({
+                    "question": question,
+                    "chat_history": formatted_history,
+                    "raw_result": raw_result
+                })
             else:
                 # For other tools, enhance the raw result with post-processing
                 raw_result = tool_func(question)
