@@ -61,6 +61,16 @@ st.markdown("""
     .fallback-badge {
         background-color: #FF6B6B;
     }
+    .tools-list {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    .tools-list-header {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -100,6 +110,21 @@ with st.sidebar:
         st.info("Memory is enabled - Husky will remember previous conversation context.")
     else:
         st.info("Memory is disabled - Each question will be treated independently.")
+    
+    # Available Tools Section
+    st.markdown("## Available Tools")
+    st.markdown("""
+    <div class="tools-list">
+        <div class="tools-list-header">Husky Navigator can access these tools:</div>
+        <div class="tool-badge course-search-badge">🔍 Course Search</div>
+        <div class="tool-badge faculty-search-badge">👨‍🏫 Faculty Search</div>
+        <div class="tool-badge academic-calendar-badge">📅 Academic Calendar</div>
+        <div class="tool-badge degree-requirements-badge">🎓 Degree Requirements</div>
+        <div class="tool-badge course-schedule-badge">⏰ Course Schedule</div>
+        <div class="tool-badge northeastern-knowledge-base-badge">📚 Knowledge Base</div>
+        <div class="tool-badge general-chat-badge">💬 General Chat</div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("## Commands")
     st.markdown("""
