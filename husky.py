@@ -279,6 +279,7 @@ class HuskyNavigatorLlama3Agent:
         self.llm = llm
         self.vectorstore = vectordb
         self.memory = ConversationSummaryMemory(
+            llm=self.llm,
             memory_key="chat_history",
             return_messages=True
         )
