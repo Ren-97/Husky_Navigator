@@ -603,7 +603,7 @@ class HuskyNavigatorLlama3Agent:
                     DEGREE REQUIREMENTS INFORMATION: {raw_result}
 
                     Determine if the query is:
-                    A) Asking for general information about a program (what is MS in CS, tell me about the Data Science program, etc.)
+                    A) Asking for general information about a program (what is MS in CS, what is MSCS, tell me about the Data Science program, etc.)
                     B) Asking specifically about requirements, courses, or what classes are needed
 
                     If Type A (general program information):
