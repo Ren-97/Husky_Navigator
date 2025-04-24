@@ -477,6 +477,8 @@ class HuskyNavigatorLlama3Agent:
             Query: "{query}"
 
             Chat history: {chat_history}
+            
+            IMPORTANT: You must evaluate this query independently of previous interactions. Ignore which tools were used for previous questions. Focus ONLY on the current query to determine the most appropriate tool.
 
             Available tools:
             1. course_search: For questions about individual course content, descriptions, prerequisites, topics covered in specific classes, etc. Use this when the question is about what a single course teaches or its academic content.
@@ -498,6 +500,7 @@ class HuskyNavigatorLlama3Agent:
             - If someone asks about required courses for a degree program, curriculum structure, or lists of core courses, use degree_requirements.
             - If someone asks about who is teaching a specific course or when a course is offered, use course_schedule.
             - If the query mentions both specific course content and program requirements, prioritize the main focus of the question.
+            - EVALUATE THIS QUERY INDEPENDENTLY, don't be influenced by which tools were used for previous questions.
 
             Based on the query and chat history, which ONE tool would be most appropriate to use?
             Respond with ONLY the tool name, nothing else.
@@ -512,7 +515,7 @@ class HuskyNavigatorLlama3Agent:
 
         # Run the chain to get the tool name
         try:
-            tool_name = chain.invoke({"query": query, "chat_history": formatted_history}).strip().lower()
+            tool_name = chain.invoke({"query": query, "chat_history": formatted_history}, config={"temperature": 0.1}).strip().lower()
 
             # Handle potential variations in response
             tool_map = {
