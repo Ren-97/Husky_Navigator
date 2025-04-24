@@ -88,7 +88,7 @@ st.markdown('<p class="subheader">Your virtual assistant for Northeastern Univer
 
 # Sidebar
 with st.sidebar:
-    st.image("https://www.siberianhuskyrescue.org/wp-content/uploads/husky.jpg", width=200)
+    st.image("husky_advisor.jpg", width=200)
     
     st.markdown("## Settings")
     # Add the summary mode toggle
