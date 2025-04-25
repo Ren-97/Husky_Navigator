@@ -86,3 +86,7 @@ Example Conversation with memory:
 - Embedding Model: nomic-embed-text
 - Vector Database: ChromaDB
 - Framework: LangChain
+
+## Extra Note
+If Husky Navigator didn't correctly select the tool, you can add the tool you want after query.
+For example, query + 'use [tool]'
