@@ -493,7 +493,7 @@ class HuskyNavigatorLlama3Agent:
 
             6. northeastern_knowledge_base: For general questions about Northeastern University.
 
-            7. general_chat: For casual conversation, greetings, or questions related to university information.
+            7. general_chat: All the question not belong to tools 1 to 6
 
             IMPORTANT RULES:
             - If someone asks about individual course content or what a specific course teaches (like 'tell me about algorithm 5800'), use course_search.
